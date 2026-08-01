@@ -972,10 +972,17 @@
       }
       const incognito = document.querySelector('button[aria-label="Use incognito"]');
       if (!incognito) return;
-      const bar = incognito.closest('[class*="z-header"]');
+      const wrapper = incognito.closest('[data-base-ui-tooltip-trigger]') || incognito;
+      let bar = wrapper.parentElement;
+      let anchor = wrapper;
+      for (let depth = 0; depth < 4 && bar; depth += 1) {
+        if (bar.classList?.contains('flex') && bar.classList?.contains('items-center')) break;
+        anchor = bar;
+        bar = bar.parentElement;
+      }
       if (!bar) return;
-      if (this.toggleBtn.parentElement !== bar) {
-        bar.insertBefore(this.toggleBtn, bar.firstChild);
+      if (this.toggleBtn.parentElement !== bar || this.toggleBtn.nextSibling !== anchor) {
+        bar.insertBefore(this.toggleBtn, anchor);
       }
       this.updateToggleVisibility();
     },
