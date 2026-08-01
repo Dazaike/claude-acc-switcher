@@ -1,0 +1,16 @@
+body {
+  min-width: 0;
+  max-width: none;
+}
+
+.syncApp {
+  max-width: 720px;
+  margin: 0 auto;
+  padding-top: 24px;
+}
+
+.syncMeta {
+  color: var(--text);
+  font-size: 13px;
+  margin-top: 10px;
+}

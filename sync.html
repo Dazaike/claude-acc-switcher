@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Claude Account Switcher Sync</title>
+  <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="sync.css">
+</head>
+<body>
+  <main class="app syncApp">
+    <header class="header">
+      <div>
+        <h1>Dropbox Sync</h1>
+        <p id="syncSubhead">Manual overwrite sync for Claude account snapshots.</p>
+      </div>
+      <button id="refreshState" class="iconBtn" title="Refresh">↻</button>
+    </header>
+
+    <section id="banner" class="banner hidden"></section>
+
+    <section class="listWrap">
+      <div class="sectionTitle">Dropbox Account</div>
+      <div id="syncStatus" class="syncStatus">Not connected.</div>
+      <div class="row" id="connectRow">
+        <button id="connectDropboxBtn" type="button" class="primary">Connect Dropbox</button>
+      </div>
+      <div class="row hidden" id="disconnectRow">
+        <button id="disconnectBtn" type="button" class="secondary">Disconnect</button>
+      </div>
+    </section>
+
+    <section class="listWrap">
+      <div class="sectionTitle">Actions</div>
+      <div class="syncStatus">Push overwrites Dropbox. Pull overwrites local accounts.</div>
+      <div class="row syncRow">
+        <button id="pushCloudBtn" type="button" class="secondary">Push to Cloud</button>
+        <button id="pullCloudBtn" type="button" class="secondary">Pull to Local</button>
+      </div>
+    </section>
+
+    <section class="listWrap">
+      <div class="sectionTitle">Last Synced</div>
+      <div id="lastSync" class="syncMeta">No sync has run yet.</div>
+    </section>
+  </main>
+
+  <script src="sync.js"></script>
+</body>
+</html>

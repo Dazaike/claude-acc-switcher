@@ -1,0 +1,368 @@
+/* ============================================================
+   Claude.ai Animations (no color theme)
+   ============================================================ */
+
+:root {
+  --cai-accent: #D97757;
+}
+
+[role="note"][data-disclaimer="true"] {
+  visibility: hidden !important;
+}
+
+/* ----------------------------------------------------------
+   Hover transitions
+   ---------------------------------------------------------- */
+
+button,
+a,
+[role="menuitem"],
+[role="menuitemradio"],
+[role="menuitemcheckbox"],
+[role="option"],
+[role="tab"] {
+  transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease;
+}
+
+/* ----------------------------------------------------------
+   Focus glow
+   ---------------------------------------------------------- */
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[role="menuitem"]:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.55), 0 0 12px 2px rgba(217, 119, 87, 0.5) !important;
+}
+
+/* ----------------------------------------------------------
+   Motion: button press, dropdown open/close, page fade-in
+   Respect prefers-reduced-motion
+   ---------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  button,
+  [role="button"],
+  [role="menuitem"],
+  [role="menuitemradio"],
+  [role="menuitemcheckbox"],
+  [role="option"],
+  [role="tab"] {
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), filter 0.35s ease-out, background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+  }
+
+  /* Guaranteed press feedback: triggered via a fixed-duration keyframe
+     animation on `click` (see enhance.js), so it always plays in full
+     even on a fast tap — :active/transition alone can miss the paint
+     when mousedown+mouseup land in the same frame. */
+  @keyframes cai-press-pulse {
+    0% {
+      transform: scale(1);
+      filter: brightness(1);
+    }
+    25% {
+      transform: scale(0.96);
+      filter: brightness(0.95);
+    }
+    100% {
+      transform: scale(1);
+      filter: brightness(1);
+    }
+  }
+
+  button:active,
+  [role="button"]:active,
+  [role="menuitem"]:active,
+  [role="menuitemradio"]:active,
+  [role="menuitemcheckbox"]:active,
+  [role="option"]:active,
+  [role="tab"]:active {
+    transform: scale(0.96);
+    filter: brightness(0.95);
+  }
+
+  /* !important: menu items also carry an entrance animation
+     (cai-item-in) on the same `animation` property. Without this, clicking
+     an item while its entrance is still the winning declaration (by
+     selector specificity) silently drops the press-pulse — only one
+     `animation` value can ever apply, they don't layer. */
+  .cai-pressed {
+    animation: cai-press-pulse 0.35s cubic-bezier(0.22, 1, 0.36, 1) both !important;
+  }
+
+  /* Model picker trigger: it's the dropdown's floating-ui anchor —
+     getBoundingClientRect() (which anchoring reads) includes CSS transforms,
+     so any scale/translate directly on it reads as the anchor moving and
+     makes the open menu shake to "follow" it. The button itself must never
+     transform. The full bounce instead plays on an inner wrapper span
+     (.cai-bounce-inner, injected by enhance.js around its content), whose
+     transform doesn't affect the outer button's own box. */
+  [data-testid="model-selector-dropdown"] {
+    transform: none !important;
+  }
+
+  [data-testid="model-selector-dropdown"]:active {
+    transform: none !important;
+  }
+
+  [data-testid="model-selector-dropdown"].cai-pressed {
+    animation: none !important;
+  }
+
+  [data-testid="model-selector-dropdown"] .cai-bounce-inner {
+    transform-origin: center;
+  }
+
+  [data-testid="model-selector-dropdown"]:active .cai-bounce-inner {
+    transform: scale(0.96);
+    filter: brightness(0.95);
+  }
+
+  [data-testid="model-selector-dropdown"] .cai-bounce-inner.cai-pressed {
+    animation: cai-press-pulse 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Dropdown / menu / popover open animation only — no animation on
+     close. The shake bug traced earlier turned out to be caused by the
+     model-picker *trigger button* bouncing (it's the floating-ui anchor,
+     and getBoundingClientRect() includes transforms) — not by animating
+     the menu's own transform. Now that the trigger never transforms
+     (see the [data-testid="model-selector-dropdown"] rules above), the
+     menu itself can safely slide on its own transform too.
+     Two different libraries are in play here, with two different
+     attribute conventions for open/closed state:
+       - Radix-style: mounts already in the open state with no prior
+         frame to transition from, so it needs a keyframe animation.
+       - Base UI-style (used by the model picker): [data-starting-style]
+         is present for exactly one frame on mount, then removed — a
+         plain transition keyed off that attribute's removal animates
+         the entrance, and (critically) can't replay later since the
+         attribute never reappears, including during the close sequence
+         (this is what caused the earlier "reopens then closes" glitch
+         from a broader, less precise selector). */
+  [role="menu"],
+  [role="listbox"],
+  [role="dialog"],
+  [data-radix-popper-content-wrapper] {
+    transition: opacity 0.2s ease-out, transform 0.5s ease-out;
+  }
+
+  [role="menu"][data-starting-style],
+  [role="listbox"][data-starting-style],
+  [data-radix-popper-content-wrapper][data-starting-style] {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  @keyframes cai-menu-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes cai-menu-slide-in {
+    from {
+      transform: translateY(10px);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  [role="menu"][data-state="open"],
+  [role="listbox"][data-state="open"],
+  [data-radix-popper-content-wrapper][data-state="open"] {
+    animation: cai-menu-fade-in 0.2s ease-out, cai-menu-slide-in 0.5s ease-out;
+  }
+
+  @keyframes cai-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .cai-fade-in {
+    animation: cai-fade-in 0.35s ease-out;
+  }
+
+  /* Menu item stagger: each item's text slides up + fades in, starting
+     only after the menu's own slide-up (0.3s) has finished. Gated only
+     on [data-starting-style] being absent (not also data-ending-style /
+     data-closed) so it can't replay mid-close the way the menu entrance
+     above can't either. */
+  @keyframes cai-item-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  [role="menu"][data-state="open"] > [role="menuitem"],
+  [role="menu"][data-state="open"] > [role="menuitemradio"],
+  [role="menu"][data-state="open"] > [role="menuitemcheckbox"],
+  [role="listbox"][data-state="open"] > [role="option"],
+  [role="menu"]:not([data-starting-style]) [role="menuitemradio"],
+  [role="menu"]:not([data-starting-style]) [role="menuitemcheckbox"],
+  [role="menu"]:not([data-starting-style]) > [role="menuitem"] {
+    animation: cai-item-in 0.12s ease-out both;
+    animation-delay: 80ms;
+  }
+
+  [role="menu"][data-state="open"] > [role="menuitem"]:nth-child(2),
+  [role="menu"][data-state="open"] > [role="menuitemradio"]:nth-child(2),
+  [role="menu"][data-state="open"] > [role="menuitemcheckbox"]:nth-child(2),
+  [role="menu"]:not([data-starting-style]) [role="menuitemradio"]:nth-child(2),
+  [role="menu"]:not([data-starting-style]) [role="menuitemcheckbox"]:nth-child(2) { animation-delay: 100ms; }
+  [role="menu"][data-state="open"] > [role="menuitem"]:nth-child(3),
+  [role="menu"][data-state="open"] > [role="menuitemradio"]:nth-child(3),
+  [role="menu"][data-state="open"] > [role="menuitemcheckbox"]:nth-child(3),
+  [role="menu"]:not([data-starting-style]) [role="menuitemradio"]:nth-child(3),
+  [role="menu"]:not([data-starting-style]) [role="menuitemcheckbox"]:nth-child(3) { animation-delay: 120ms; }
+  [role="menu"][data-state="open"] > [role="menuitem"]:nth-child(4),
+  [role="menu"][data-state="open"] > [role="menuitemradio"]:nth-child(4),
+  [role="menu"][data-state="open"] > [role="menuitemcheckbox"]:nth-child(4),
+  [role="menu"]:not([data-starting-style]) [role="menuitemradio"]:nth-child(4),
+  [role="menu"]:not([data-starting-style]) [role="menuitemcheckbox"]:nth-child(4) { animation-delay: 140ms; }
+  [role="menu"][data-state="open"] > [role="menuitem"]:nth-child(5),
+  [role="menu"][data-state="open"] > [role="menuitemradio"]:nth-child(5),
+  [role="menu"][data-state="open"] > [role="menuitemcheckbox"]:nth-child(5),
+  [role="menu"]:not([data-starting-style]) [role="menuitemradio"]:nth-child(5),
+  [role="menu"]:not([data-starting-style]) [role="menuitemcheckbox"]:nth-child(5) { animation-delay: 160ms; }
+  [role="menu"][data-state="open"] > [role="menuitem"]:nth-child(6),
+  [role="menu"][data-state="open"] > [role="menuitemradio"]:nth-child(6),
+  [role="menu"][data-state="open"] > [role="menuitemcheckbox"]:nth-child(6),
+  [role="menu"]:not([data-starting-style]) [role="menuitemradio"]:nth-child(6),
+  [role="menu"]:not([data-starting-style]) [role="menuitemcheckbox"]:nth-child(6) { animation-delay: 180ms; }
+  [role="menu"][data-state="open"] > [role="menuitem"]:nth-child(n+7),
+  [role="menu"][data-state="open"] > [role="menuitemradio"]:nth-child(n+7),
+  [role="menu"][data-state="open"] > [role="menuitemcheckbox"]:nth-child(n+7),
+  [role="menu"]:not([data-starting-style]) [role="menuitemradio"]:nth-child(n+7),
+  [role="menu"]:not([data-starting-style]) [role="menuitemcheckbox"]:nth-child(n+7) { animation-delay: 200ms; }
+
+  [role="listbox"][data-state="open"] > [role="option"]:nth-child(2) { animation-delay: 100ms; }
+  [role="listbox"][data-state="open"] > [role="option"]:nth-child(3) { animation-delay: 120ms; }
+  [role="listbox"][data-state="open"] > [role="option"]:nth-child(4) { animation-delay: 140ms; }
+  [role="listbox"][data-state="open"] > [role="option"]:nth-child(5) { animation-delay: 160ms; }
+  [role="listbox"][data-state="open"] > [role="option"]:nth-child(n+6) { animation-delay: 180ms; }
+
+  /* Scrollbar appearing then vanishing while items stagger in: the
+     scrollable list inside a menu (Tailwind's overflow-y-auto) shouldn't
+     show its scrollbar until the entrance settles. A `transition` on
+     `overflow-y` doesn't fire here — transitions don't run on an
+     element's initial style (no prior value to transition from) — so
+     this uses a `steps()` keyframe instead, which always plays on mount
+     regardless of insertion timing. */
+  @keyframes cai-hide-scrollbar {
+    0%, 99% {
+      overflow-y: hidden;
+    }
+    100% {
+      overflow-y: auto;
+    }
+  }
+
+  [role="menu"] .overflow-y-auto,
+  [role="listbox"] .overflow-y-auto {
+    animation: cai-hide-scrollbar 0.3s steps(1, end) both;
+  }
+
+  /* Hover lift: subtle raise on buttons/menu items */
+  button,
+  [role="button"],
+  [role="menuitem"],
+  [role="menuitemradio"],
+  [role="menuitemcheckbox"],
+  [role="option"] {
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.35s ease, color 0.35s ease, box-shadow 0.35s ease;
+  }
+
+  button:hover,
+  [role="button"]:hover,
+  [role="menuitem"]:hover,
+  [role="menuitemradio"]:hover,
+  [role="menuitemcheckbox"]:hover,
+  [role="option"]:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+
+  button:active,
+  [role="button"]:active,
+  [role="menuitem"]:active,
+  [role="menuitemradio"]:active,
+  [role="menuitemcheckbox"]:active,
+  [role="option"]:active {
+    transform: translateY(0) scale(0.96);
+    filter: brightness(0.95);
+    box-shadow: none;
+  }
+
+  /* Tab switch: animate the underline/indicator on the active tab */
+  [role="tab"] {
+    position: relative;
+    transition: color 0.35s ease;
+  }
+
+  [role="tab"][aria-selected="true"]::after,
+  [role="tab"][data-state="active"]::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background-color: var(--cai-accent);
+    border-radius: 2px;
+    animation: cai-fade-in 0.35s ease-out;
+  }
+
+  /* Tooltip fade */
+  [role="tooltip"] {
+    transition: opacity 0.35s ease, filter 0.35s ease, transform 0.35s ease;
+  }
+
+  [role="tooltip"][data-state="closed"] {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(4px);
+  }
+
+  [role="tooltip"][data-state="open"],
+  [role="tooltip"]:not([data-state]) {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+
+  /* Toast / notification slide-in */
+  [role="status"],
+  [role="alert"],
+  [data-sonner-toast] {
+    animation: cai-toast-in 0.35s ease-out both;
+  }
+
+  @keyframes cai-toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

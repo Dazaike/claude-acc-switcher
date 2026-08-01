@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Claude Account Switcher</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <div>
+        <h1>Claude Account Switcher</h1>
+        <p id="subhead">Save and swap full Claude account snapshots.</p>
+      </div>
+      <button id="refreshState" class="iconBtn" title="Refresh">↻</button>
+    </header>
+
+    <section id="banner" class="banner hidden"></section>
+
+    <section class="saveCard">
+      <button id="toggleSave" class="primary wide">+ Save current account</button>
+      <button id="logoutBtn" class="danger wide logoutBtn" type="button">Log out of Claude</button>
+      <form id="saveForm" class="saveForm hidden">
+        <label>
+          <span>Name</span>
+          <input id="nameInput" type="text" maxlength="40" placeholder="Work, Personal, School..." autocomplete="off">
+        </label>
+        <label>
+          <span>Email</span>
+          <input id="emailInput" type="email" placeholder="Optional" autocomplete="off">
+        </label>
+        <div class="row">
+          <button id="saveBtn" type="submit" class="primary">Save snapshot</button>
+          <button id="cancelSave" type="button" class="secondary">Cancel</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="listWrap">
+      <button id="accountsToggle" class="sectionToggle" aria-expanded="false">
+        <span class="sectionTitle">Saved accounts <span id="accountsCount" class="accountsCount"></span></span>
+        <span class="toggleChevron">▾</span>
+      </button>
+      <div id="accountList" class="accountList hidden"></div>
+    </section>
+
+    <section class="listWrap">
+      <div class="sectionTitle">Settings</div>
+      <label class="toggleRow" for="trackerToggle">
+        <span>Inline usage tracker on claude.ai</span>
+        <input id="trackerToggle" type="checkbox" class="switchInput">
+      </label>
+    </section>
+
+    <section class="listWrap">
+      <div class="sectionTitle">Dropbox Sync</div>
+      <div id="syncStatus" class="syncStatus">Not connected.</div>
+      <div id="dropboxName" class="dropboxName hidden"></div>
+      <div class="row syncRow" id="syncButtons">
+        <button id="pushCloudBtn" type="button" class="secondary" disabled>Push</button>
+        <button id="pullCloudBtn" type="button" class="secondary" disabled>Pull</button>
+        <button id="openSyncPageBtn" type="button" class="secondary">Settings</button>
+      </div>
+      <div id="confirmDialog" class="confirmDialog hidden">
+        <div id="confirmMsg" class="confirmMsg"></div>
+        <div class="row">
+          <button id="confirmYes" type="button" class="primary small">Confirm</button>
+          <button id="confirmNo" type="button" class="secondary small">Cancel</button>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      Cookie swap + storage restore. Finally doing the actual shit that userscripts couldn't.
+    </footer>
+  </main>
+
+  <template id="accountRowTemplate">
+    <article class="accountRow">
+      <div class="accountMain">
+        <div class="avatar"></div>
+        <div class="accountText">
+          <div class="titleLine">
+            <span class="name"></span>
+            <span class="pill hidden">Active</span>
+          </div>
+          <div class="sub"></div>
+          <div class="meta"></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="switchBtn primary small">Switch</button>
+        <button class="refreshBtn secondary small">Re-save</button>
+        <button class="renameBtn secondary small">Rename</button>
+        <button class="deleteBtn danger small">Delete</button>
+      </div>
+    </article>
+  </template>
+
+  <script src="popup.js"></script>
+</body>
+</html>
