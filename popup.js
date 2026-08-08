@@ -215,11 +215,13 @@ function renderAccounts() {
 
   for (const account of state.accounts) {
     const node = els.template.content.firstElementChild.cloneNode(true);
+    node.dataset.id = account.id;
     const avatar = node.querySelector('.avatar');
     const name = node.querySelector('.name');
     const pill = node.querySelector('.pill');
     const sub = node.querySelector('.sub');
     const meta = node.querySelector('.meta');
+    const dragHandle = node.querySelector('.dragHandle');
     const switchBtn = node.querySelector('.switchBtn');
     const refreshBtn = node.querySelector('.refreshBtn');
     const renameBtn = node.querySelector('.renameBtn');
@@ -236,6 +238,79 @@ function renderAccounts() {
     if (account.id === state.activeId) {
       pill.classList.remove('hidden');
     }
+
+    // Handle-only drag: enable draggable on grip mousedown.
+    let rowDragging = false;
+    dragHandle.addEventListener('mousedown', () => {
+      node.draggable = true;
+      rowDragging = false;
+      const onUp = () => {
+        window.removeEventListener('mouseup', onUp);
+        if (!rowDragging) node.draggable = false;
+      };
+      window.addEventListener('mouseup', onUp);
+    });
+    node.addEventListener('dragstart', (event) => {
+      if (!node.draggable) {
+        event.preventDefault();
+        return;
+      }
+      rowDragging = true;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', account.id);
+      node.classList.add('dragging');
+    });
+    node.addEventListener('dragend', () => {
+      rowDragging = false;
+      node.draggable = false;
+      node.classList.remove('dragging');
+      els.accountList.querySelectorAll('.dragOver').forEach((el) => el.classList.remove('dragOver'));
+    });
+    node.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      const dragging = els.accountList.querySelector('.accountRow.dragging');
+      if (!dragging || dragging === node) return;
+      els.accountList.querySelectorAll('.dragOver').forEach((el) => {
+        if (el !== node) el.classList.remove('dragOver');
+      });
+      node.classList.add('dragOver');
+    });
+    node.addEventListener('dragleave', (event) => {
+      if (!node.contains(event.relatedTarget)) {
+        node.classList.remove('dragOver');
+      }
+    });
+    node.addEventListener('drop', async (event) => {
+      event.preventDefault();
+      node.classList.remove('dragOver');
+      const fromId = event.dataTransfer.getData('text/plain');
+      const toId = account.id;
+      if (!fromId || fromId === toId) return;
+
+      const ids = state.accounts.map((item) => item.id);
+      const fromIndex = ids.indexOf(fromId);
+      const toIndex = ids.indexOf(toId);
+      if (fromIndex < 0 || toIndex < 0) return;
+
+      ids.splice(fromIndex, 1);
+      ids.splice(toIndex, 0, fromId);
+
+      const previous = state.accounts.slice();
+      state.accounts = ids.map((id) => previous.find((item) => item.id === id)).filter(Boolean);
+      renderAccounts();
+
+      const result = await send('cas:reorder', { orderedIds: ids });
+      if (!result.ok) {
+        state.accounts = previous;
+        renderAccounts();
+        showBanner(result.error || 'Reorder failed.');
+        return;
+      }
+      if (Array.isArray(result.accounts)) {
+        state.accounts = result.accounts;
+      }
+    });
 
     switchBtn.addEventListener('click', async () => {
       await withBusy(switchBtn, async () => {

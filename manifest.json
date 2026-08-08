@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Claude Account Switcher",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0/r1UG/lS4jcrukQlcp7DXAasmwkKAkFpe6m5uk8Y0DgtK4BRi2W6BZUwv8HLTNVSoCfjXXlp9rbXoZwtjZcXwAiV3qqlwp/ER9MssvIEcjf75SG85Ns0DRUtF4Lc+mBgSa5JLBG8nY8oO/8/OsLc6nkwsXgVG1iGLMEKifQVrr1bAZHqDAEBKT6JR0qzDs72R3pr9HYo8YRtbHTAvnUUvIoHhhX9ytGT/u6f4iAru5olv0u4Iml0fdI5CPeONX/UUdSsLSQRXsLcWT1qDEkeRiQxe1lRYrM9xY6QtdFz7Vrkl/3ltVX4h1b8X5ZkVrwL8rFBeta2NKvObwYq10QxwIDAQAB",
-  "version": "19.4",
+  "version": "19.5",
   "description": "Save and switch Claude web account snapshots using cookies plus origin storage.",
   "permissions": [
     "storage",

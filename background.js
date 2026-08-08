@@ -33,6 +33,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case 'cas:rename':
         sendResponse(await renameAccount(String(message.id || ''), message.payload || {}));
         return;
+      case 'cas:reorder':
+        sendResponse(await reorderAccounts(message.payload || {}));
+        return;
       case 'cas:refresh':
         sendResponse(await refreshAccount(String(message.id || '')));
         return;
@@ -428,6 +431,37 @@ async function removeAccount(id) {
   const nextActiveId = activeId === id ? null : activeId;
   await writeStore({ accounts: nextAccounts, activeId: nextActiveId });
   return { ok: true, activeId: nextActiveId };
+}
+
+async function reorderAccounts(payload) {
+  const orderedIds = Array.isArray(payload?.orderedIds)
+    ? payload.orderedIds.map((id) => String(id || '')).filter(Boolean)
+    : null;
+  if (!orderedIds?.length) {
+    throw new Error('orderedIds required.');
+  }
+
+  const { accounts, activeId } = await readStore();
+  if (orderedIds.length !== accounts.length) {
+    throw new Error('Account list changed; refresh and try again.');
+  }
+  if (new Set(orderedIds).size !== orderedIds.length) {
+    throw new Error('Duplicate account id in order.');
+  }
+
+  const byId = new Map(accounts.map((item) => [item.id, item]));
+  if (orderedIds.some((id) => !byId.has(id))) {
+    throw new Error('Unknown account id in order.');
+  }
+
+  const nextAccounts = orderedIds.map((id) => byId.get(id));
+  const unchanged = nextAccounts.every((item, index) => item.id === accounts[index].id);
+  if (unchanged) {
+    return { ok: true, accounts: nextAccounts };
+  }
+
+  await writeStore({ accounts: nextAccounts, activeId });
+  return { ok: true, accounts: nextAccounts };
 }
 
 async function switchAccount(id) {
