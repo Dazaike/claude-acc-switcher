@@ -23,6 +23,24 @@
     }
   }
 
+  let upgradeModelTaggingQueued = false;
+
+  function scheduleUpgradeModelTagging() {
+    if (upgradeModelTaggingQueued) return;
+    upgradeModelTaggingQueued = true;
+    queueMicrotask(() => {
+      upgradeModelTaggingQueued = false;
+      const modelMenus = [...document.querySelectorAll('[role="menu"], [role="listbox"], [role="dialog"]')]
+        .filter((menu) => menu.textContent?.includes('Upgrade'));
+
+      for (const menu of modelMenus) {
+        for (const option of menu.querySelectorAll(MODEL_OPTIONS)) {
+          option.classList.toggle('cai-upgrade-model', option.textContent?.includes('Upgrade'));
+        }
+      }
+    });
+  }
+
   function observeDom() {
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
@@ -30,6 +48,7 @@
           tagForFadeIn(node);
         }
       }
+      scheduleUpgradeModelTagging();
     });
 
     observer.observe(document.documentElement, { childList: true, subtree: true });
@@ -38,35 +57,51 @@
   const PRESS_TARGETS =
     'button, [role="button"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"], [role="tab"]';
 
-  // The model picker trigger is the floating-ui anchor for its dropdown —
-  // getBoundingClientRect() (which anchoring reads) includes CSS transforms,
-  // so bouncing the trigger itself reads as the anchor moving and makes the
-  // open menu shake to follow it. Instead we bounce an inner wrapper around
-  // its content, leaving the real button's own box untouched.
-  const BOUNCE_WRAP_TARGET = '[data-testid="model-selector-dropdown"]';
+  // The model picker is a floating-ui anchor, so its own box must not move.
+  // Animate a content wrapper instead; it preserves the menu's anchor while
+  // retaining press feedback.
+  const MODEL_PICKER_TRIGGER = '[data-testid="model-selector-dropdown"]';
 
-  function getBounceInner(trigger) {
+  const SETTINGS_KEY = 'cas_ext_settings';
+  const MODEL_OPTIONS = '[role="menuitemradio"], [role="menuitem"], [role="option"], button';
+
+  function applyHideUpgradeModels(enabled) {
+    document.documentElement.dataset.caiHideUpgradeModels = String(enabled);
+    scheduleUpgradeModelTagging();
+  }
+
+  async function loadModelPickerSettings() {
+    try {
+      const stored = await chrome.storage.local.get(SETTINGS_KEY);
+      applyHideUpgradeModels(stored[SETTINGS_KEY]?.hideUpgradeModels !== false);
+    } catch {
+      applyHideUpgradeModels(true);
+    }
+
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== 'local' || !changes[SETTINGS_KEY]) return;
+      applyHideUpgradeModels(changes[SETTINGS_KEY].newValue?.hideUpgradeModels !== false);
+    });
+  }
+
+  function selectorBounceInner(trigger) {
     let wrapper = trigger.querySelector(':scope > .cai-bounce-inner');
     if (wrapper) return wrapper;
 
     wrapper = document.createElement('span');
     wrapper.className = 'cai-bounce-inner';
-    const cs = getComputedStyle(trigger);
-    wrapper.style.display = cs.display === 'inline-flex' || cs.display === 'flex' ? 'flex' : 'inline-flex';
-    wrapper.style.alignItems = cs.alignItems;
-    wrapper.style.justifyContent = cs.justifyContent;
-    wrapper.style.gap = cs.gap;
-    wrapper.style.width = '100%';
-    wrapper.style.height = '100%';
-    wrapper.style.minWidth = '0';
-
+    wrapper.style.display = getComputedStyle(trigger).display === 'flex' ? 'flex' : 'inline-flex';
+    wrapper.style.alignItems = 'inherit';
+    wrapper.style.justifyContent = 'inherit';
     while (trigger.firstChild) wrapper.appendChild(trigger.firstChild);
     trigger.appendChild(wrapper);
     return wrapper;
   }
 
   function flashPressed(target) {
-    const flashTarget = target.matches(BOUNCE_WRAP_TARGET) ? getBounceInner(target) : target;
+    const flashTarget = target.matches(MODEL_PICKER_TRIGGER)
+      ? selectorBounceInner(target)
+      : target;
     flashTarget.classList.remove('cai-pressed');
     void flashTarget.offsetWidth; // force reflow so the animation restarts
     flashTarget.classList.add('cai-pressed');
@@ -93,7 +128,9 @@
     const onClick = (e) => {
       const target = e.target instanceof Element ? e.target.closest(PRESS_TARGETS) : null;
       if (!target) return;
-      const flashTarget = target.matches(BOUNCE_WRAP_TARGET) ? getBounceInner(target) : target;
+      const flashTarget = target.matches(MODEL_PICKER_TRIGGER)
+        ? selectorBounceInner(target)
+        : target;
       if (!flashTarget.classList.contains('cai-pressed')) flashPressed(target);
     };
 
@@ -114,10 +151,12 @@
     );
   }
 
+
   function init() {
     tagForFadeIn(document.body);
     observeDom();
     setupPressEffect();
+    loadModelPickerSettings();
   }
 
   if (document.body) {

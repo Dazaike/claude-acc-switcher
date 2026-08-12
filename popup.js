@@ -23,6 +23,7 @@ const els = {
   confirmYes: document.getElementById('confirmYes'),
   confirmNo: document.getElementById('confirmNo'),
   trackerToggle: document.getElementById('trackerToggle'),
+  hideUpgradeModelsToggle: document.getElementById('hideUpgradeModelsToggle'),
   template: document.getElementById('accountRowTemplate')
 };
 
@@ -60,6 +61,7 @@ async function loadSettings() {
   const stored = await chrome.storage.local.get(SETTINGS_KEY);
   const settings = stored[SETTINGS_KEY] || {};
   els.trackerToggle.checked = settings.inlineTrackerEnabled !== false;
+  els.hideUpgradeModelsToggle.checked = settings.hideUpgradeModels !== false;
 }
 
 function bindEvents() {
@@ -139,6 +141,13 @@ function bindEvents() {
     const stored = await chrome.storage.local.get(SETTINGS_KEY);
     const settings = stored[SETTINGS_KEY] || {};
     settings.inlineTrackerEnabled = els.trackerToggle.checked;
+    await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
+  });
+
+  els.hideUpgradeModelsToggle.addEventListener('change', async () => {
+    const stored = await chrome.storage.local.get(SETTINGS_KEY);
+    const settings = stored[SETTINGS_KEY] || {};
+    settings.hideUpgradeModels = els.hideUpgradeModelsToggle.checked;
     await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
   });
 

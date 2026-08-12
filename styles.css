@@ -10,6 +10,11 @@
   visibility: hidden !important;
 }
 
+/* Set by enhance.js from the extension's “Hide upgrade-only models” setting. */
+:root[data-cai-hide-upgrade-models="true"] .cai-upgrade-model {
+  display: none !important;
+}
+
 /* ----------------------------------------------------------
    Hover transitions
    ---------------------------------------------------------- */
@@ -92,36 +97,50 @@ textarea:focus-visible,
     animation: cai-press-pulse 0.35s cubic-bezier(0.22, 1, 0.36, 1) both !important;
   }
 
-  /* Model picker trigger: it's the dropdown's floating-ui anchor —
-     getBoundingClientRect() (which anchoring reads) includes CSS transforms,
-     so any scale/translate directly on it reads as the anchor moving and
-     makes the open menu shake to "follow" it. The button itself must never
-     transform. The full bounce instead plays on an inner wrapper span
-     (.cai-bounce-inner, injected by enhance.js around its content), whose
-     transform doesn't affect the outer button's own box. */
-  [data-testid="model-selector-dropdown"] {
-    transform: none !important;
-  }
-
+  /* The selector is a floating-ui anchor. Keep its own box neutral on hover;
+     the inner wrapper is the only element allowed to animate. */
+  [data-testid="model-selector-dropdown"],
+  [data-testid="model-selector-dropdown"]:hover,
   [data-testid="model-selector-dropdown"]:active {
+    background: transparent !important;
+    box-shadow: none !important;
+    filter: none !important;
     transform: none !important;
-  }
-
-  [data-testid="model-selector-dropdown"].cai-pressed {
     animation: none !important;
   }
 
-  [data-testid="model-selector-dropdown"] .cai-bounce-inner {
+  /* Claude applies its hover background to nested label wrappers rather than
+     the trigger in some selector variants. Keep every visual descendant
+     neutral, while leaving the bounce wrapper's transform available below. */
+  [data-testid="model-selector-dropdown"] > .cai-bounce-inner,
+  [data-testid="model-selector-dropdown"] > .cai-bounce-inner * {
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  [data-testid="model-selector-dropdown"] {
+    border-radius: 8px;
+    transition: background-color 0.15s ease;
+  }
+
+  [data-testid="model-selector-dropdown"] > .cai-bounce-inner {
     transform-origin: center;
   }
 
-  [data-testid="model-selector-dropdown"]:active .cai-bounce-inner {
+  /* Full-button feedback, with a fixed radius so it cannot become the
+     previous sharp square highlight. */
+  [data-testid="model-selector-dropdown"]:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  [data-testid="model-selector-dropdown"]:active > .cai-bounce-inner {
     transform: scale(0.96);
     filter: brightness(0.95);
   }
 
-  [data-testid="model-selector-dropdown"] .cai-bounce-inner.cai-pressed {
-    animation: cai-press-pulse 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  [data-testid="model-selector-dropdown"] > .cai-bounce-inner.cai-pressed {
+    animation: cai-press-pulse 0.35s cubic-bezier(0.22, 1, 0.36, 1) both !important;
   }
 
   /* Dropdown / menu / popover open animation only — no animation on
