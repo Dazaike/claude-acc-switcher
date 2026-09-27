@@ -35,8 +35,6 @@ a,
 
 button:focus-visible,
 a:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
 [role="menuitem"]:focus-visible {
   outline: none !important;
   box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.55), 0 0 12px 2px rgba(217, 119, 87, 0.5) !important;
