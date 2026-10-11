@@ -54,6 +54,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case 'cas:pullDropbox':
         sendResponse(await pullDropboxBackup());
         return;
+      case 'cas:exportData':
+        sendResponse({ ok: true, data: await buildBackupPayload() });
+        return;
+      case 'cas:importData':
+        sendResponse(await importData(message.payload || {}));
+        return;
+      case 'cas:syncDropbox':
+        sendResponse(await syncDropboxMerge());
+        return;
       default:
         sendResponse({ ok: false, error: 'Unknown message type.' });
         return;
@@ -222,12 +231,7 @@ async function pushDropboxBackup() {
   try {
     const { accounts, activeId } = await readStore();
     const token = await getValidDropboxToken();
-    const payload = {
-      version: 1,
-      exportedAt: Date.now(),
-      activeId,
-      accounts
-    };
+    const payload = await buildBackupPayload();
 
     const response = await fetch('https://content.dropboxapi.com/2/files/upload', {
       method: 'POST',
@@ -277,13 +281,7 @@ async function pullDropboxBackup() {
     });
 
     await ensureDropboxOk(response, 'Dropbox pull failed.');
-    const payload = await response.json();
-    const accounts = Array.isArray(payload?.accounts) ? payload.accounts : null;
-    const activeId = payload?.activeId == null ? null : String(payload.activeId);
-    if (!accounts) {
-      throw new Error('Dropbox backup file is missing the accounts array.');
-    }
-
+    const { accounts, activeId } = parseBackupPayload(await response.json());
     await writeStore({ accounts, activeId });
     const result = { ok: true, count: accounts.length, activeId };
     await setSyncStatus({
@@ -300,6 +298,98 @@ async function pullDropboxBackup() {
       message: error?.message || String(error),
       at: Date.now()
     });
+    throw error;
+  }
+}
+
+// --- Local import/export + merge sync (shared payload format with Dropbox backup) ---
+
+const BACKUP_FORMAT = 'claude-account-switcher-backup';
+
+async function buildBackupPayload() {
+  const { accounts, activeId } = await readStore();
+  return { format: BACKUP_FORMAT, version: 2, exportedAt: Date.now(), activeId, accounts };
+}
+
+function parseBackupPayload(payload) {
+  if (!payload || typeof payload !== 'object' || !Array.isArray(payload.accounts)) {
+    throw new Error('Backup is missing the accounts array.');
+  }
+  const accounts = payload.accounts.map((item) => {
+    if (!item || typeof item !== 'object' || !item.id || !item.snapshot || typeof item.snapshot !== 'object') {
+      throw new Error('Backup contains an invalid account entry.');
+    }
+    return { ...item, id: String(item.id) };
+  });
+  const activeId = payload.activeId == null ? null : String(payload.activeId);
+  return { accounts, activeId };
+}
+
+// Union by id; on conflict the entry with the newer savedAt wins. Local order is kept, new entries append.
+function mergeAccounts(localAccounts, incomingAccounts) {
+  const merged = localAccounts.slice();
+  const indexById = new Map(merged.map((item, i) => [item.id, i]));
+  let added = 0;
+  let updated = 0;
+  for (const incoming of incomingAccounts) {
+    const i = indexById.get(incoming.id);
+    if (i === undefined) {
+      indexById.set(incoming.id, merged.length);
+      merged.push(incoming);
+      added++;
+    } else if (Number(incoming.savedAt || 0) > Number(merged[i].savedAt || 0)) {
+      merged[i] = incoming;
+      updated++;
+    }
+  }
+  return { accounts: merged, added, updated };
+}
+
+async function importData(payload) {
+  const mode = payload.mode === 'replace' ? 'replace' : 'merge';
+  const incoming = parseBackupPayload(payload.data);
+  const local = await readStore();
+
+  if (mode === 'replace') {
+    await writeStore(incoming);
+    return { ok: true, mode, count: incoming.accounts.length };
+  }
+
+  const { accounts, added, updated } = mergeAccounts(local.accounts, incoming.accounts);
+  const activeId = local.activeId || (accounts.some((a) => a.id === incoming.activeId) ? incoming.activeId : null);
+  await writeStore({ accounts, activeId });
+  return { ok: true, mode, count: accounts.length, added, updated };
+}
+
+async function syncDropboxMerge() {
+  try {
+    const token = await getValidDropboxToken();
+    const response = await fetch('https://content.dropboxapi.com/2/files/download', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Dropbox-API-Arg': JSON.stringify({ path: DROPBOX_BACKUP_PATH })
+      }
+    });
+
+    let remote = { accounts: [], activeId: null };
+    if (response.ok) {
+      remote = parseBackupPayload(await response.json());
+    } else if (response.status !== 409) {
+      await ensureDropboxOk(response, 'Dropbox sync failed.');
+    } // 409 = no backup file yet; first sync just uploads local.
+
+    const local = await readStore();
+    const { accounts, added, updated } = mergeAccounts(local.accounts, remote.accounts);
+    const activeId = local.activeId || (accounts.some((a) => a.id === remote.activeId) ? remote.activeId : null);
+    await writeStore({ accounts, activeId });
+    await pushDropboxBackup();
+
+    const message = `Synced ${accounts.length} account${accounts.length === 1 ? '' : 's'} with Dropbox (${added} added, ${updated} updated locally).`;
+    await setSyncStatus({ type: 'sync', ok: true, message, at: Date.now() });
+    return { ok: true, count: accounts.length, added, updated };
+  } catch (error) {
+    await setSyncStatus({ type: 'sync', ok: false, message: error?.message || String(error), at: Date.now() });
     throw error;
   }
 }

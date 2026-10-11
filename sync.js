@@ -8,7 +8,12 @@ const els = {
   pushCloudBtn: document.getElementById('pushCloudBtn'),
   pullCloudBtn: document.getElementById('pullCloudBtn'),
   lastSync: document.getElementById('lastSync'),
-  refreshState: document.getElementById('refreshState')
+  refreshState: document.getElementById('refreshState'),
+  mergeSyncBtn: document.getElementById('mergeSyncBtn'),
+  exportBtn: document.getElementById('exportBtn'),
+  importBtn: document.getElementById('importBtn'),
+  importReplaceBtn: document.getElementById('importReplaceBtn'),
+  importFile: document.getElementById('importFile')
 };
 
 let state = {
@@ -74,6 +79,68 @@ function bindEvents() {
       await reloadState();
     });
   });
+
+  els.mergeSyncBtn.addEventListener('click', async () => {
+    await withBusy(els.mergeSyncBtn, async () => {
+      const result = await send('cas:syncDropbox');
+      if (!result.ok) {
+        showBanner(result.error || 'Sync failed.');
+        return;
+      }
+      await reloadState();
+    });
+  });
+
+  els.exportBtn.addEventListener('click', async () => {
+    await withBusy(els.exportBtn, async () => {
+      const result = await send('cas:exportData');
+      if (!result.ok) {
+        showBanner(result.error || 'Export failed.');
+        return;
+      }
+      const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `claude-accounts-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      showBanner(`Exported ${result.data.accounts.length} account(s).`, false);
+    });
+  });
+
+  let importMode = 'merge';
+  els.importBtn.addEventListener('click', () => { importMode = 'merge'; els.importFile.click(); });
+  els.importReplaceBtn.addEventListener('click', () => {
+    if (!window.confirm('Replace ALL local accounts with the imported file?')) return;
+    importMode = 'replace';
+    els.importFile.click();
+  });
+  els.importFile.addEventListener('change', async () => {
+    const file = els.importFile.files[0];
+    els.importFile.value = '';
+    if (!file) return;
+    let data;
+    try {
+      data = JSON.parse(await file.text());
+    } catch {
+      showBanner('Selected file is not valid JSON.');
+      return;
+    }
+    const result = await send('cas:importData', { data, mode: importMode });
+    if (!result.ok) {
+      showBanner(result.error || 'Import failed.');
+      return;
+    }
+    showBanner(
+      result.mode === 'replace'
+        ? `Replaced local accounts with ${result.count} imported account(s).`
+        : `Imported: ${result.added} added, ${result.updated} updated (${result.count} total).`,
+      false
+    );
+  });
 }
 
 async function reloadState(message) {
@@ -93,6 +160,7 @@ async function reloadState(message) {
   els.disconnectRow.classList.toggle('hidden', !state.dropboxConnected);
   els.pushCloudBtn.disabled = !state.dropboxConnected;
   els.pullCloudBtn.disabled = !state.dropboxConnected;
+  els.mergeSyncBtn.disabled = !state.dropboxConnected;
   els.lastSync.textContent = formatSyncStatus(state.syncStatus);
 
   if (message) {
@@ -120,7 +188,7 @@ function formatSyncStatus(syncStatus) {
   if (!syncStatus?.at) {
     return 'No sync has run yet.';
   }
-  const action = syncStatus.type === 'pull' ? 'Pull' : 'Push';
+  const action = { pull: 'Pull', sync: 'Merge sync' }[syncStatus.type] || 'Push';
   const outcome = syncStatus.ok ? 'succeeded' : 'failed';
   const time = new Date(syncStatus.at).toLocaleString();
   return `${action} ${outcome} on ${time}.`;

@@ -37,6 +37,21 @@
         <button id="pushCloudBtn" type="button" class="secondary">Push to Cloud</button>
         <button id="pullCloudBtn" type="button" class="secondary">Pull to Local</button>
       </div>
+      <div class="row syncRow">
+        <button id="mergeSyncBtn" type="button" class="primary">Merge Sync (two-way)</button>
+      </div>
+      <div class="syncStatus">Merge Sync combines local and Dropbox accounts (newer save wins), then uploads the result.</div>
+    </section>
+
+    <section class="listWrap">
+      <div class="sectionTitle">Local Backup</div>
+      <div class="syncStatus">Export includes account cookies and storage — treat the file like a password.</div>
+      <div class="row syncRow">
+        <button id="exportBtn" type="button" class="secondary">Export to File</button>
+        <button id="importBtn" type="button" class="secondary">Import (Merge)</button>
+        <button id="importReplaceBtn" type="button" class="secondary">Import (Replace)</button>
+      </div>
+      <input id="importFile" type="file" accept=".json,application/json" class="hidden">
     </section>
 
     <section class="listWrap">
