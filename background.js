@@ -857,7 +857,21 @@ async function captureStorageSnapshot() {
 
     return {
       ok: true,
-      snapshot,
+      snapshot: {
+        ...snapshot,
+        // Chrome's extension storage cannot persist the binary values from IndexedDB.
+        indexedDB: JSON.stringify(snapshot.indexedDB, function (key, value) {
+          const raw = this[key];
+          if (raw instanceof ArrayBuffer) return `~cas:ArrayBuffer:${new Uint8Array(raw).toBase64()}`;
+          if (ArrayBuffer.isView(raw)) {
+            const bytes = new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);
+            return `~cas:${raw.constructor.name}:${bytes.toBase64()}`;
+          }
+          if (raw instanceof Date) return `~cas:Date:${raw.getTime()}`;
+          if (typeof raw === 'bigint') return `~cas:BigInt:${raw}`;
+          return typeof value === 'string' && value.startsWith('~cas:') ? `~cas:string:${value}` : value;
+        })
+      },
       summary: {
         localStorageKeys: Object.keys(snapshot.localStorage).length,
         sessionStorageKeys: Object.keys(snapshot.sessionStorage).length,
@@ -971,6 +985,25 @@ async function restoreStorageSnapshot(snapshot) {
       throw new Error('Missing storage snapshot.');
     }
 
+    const databases = typeof snapshot.indexedDB === 'string'
+      ? JSON.parse(snapshot.indexedDB, (_, value) => {
+        if (typeof value !== 'string' || !value.startsWith('~cas:')) return value;
+
+        const separator = value.indexOf(':', 5);
+        const type = value.slice(5, separator);
+        const data = value.slice(separator + 1);
+        if (type === 'string') return data;
+        if (type === 'Date') return new Date(Number(data));
+        if (type === 'BigInt') return BigInt(data);
+        if (type === 'ArrayBuffer') return Uint8Array.fromBase64(data).buffer;
+        if (/^(?:DataView|(?:(?:Int|Uint)(?:8|16|32)|Uint8Clamped|Float(?:16|32|64)|Big(?:Int|Uint)64)Array)$/.test(type)) {
+          return new globalThis[type](Uint8Array.fromBase64(data).buffer);
+        }
+        throw new Error('Unknown IndexedDB snapshot value type.');
+      })
+      : snapshot.indexedDB || [];
+    if (!Array.isArray(databases)) throw new Error('Invalid IndexedDB snapshot.');
+
     sessionStorage.clear();
     localStorage.clear();
 
@@ -982,7 +1015,7 @@ async function restoreStorageSnapshot(snapshot) {
       sessionStorage.setItem(key, value);
     }
 
-    for (const dbSnapshot of snapshot.indexedDB || []) {
+    for (const dbSnapshot of databases) {
       await restoreDatabase(dbSnapshot);
     }
 
@@ -991,8 +1024,8 @@ async function restoreStorageSnapshot(snapshot) {
       summary: {
         localStorageKeys: Object.keys(snapshot.localStorage || {}).length,
         sessionStorageKeys: Object.keys(snapshot.sessionStorage || {}).length,
-        indexedDBDatabases: Array.isArray(snapshot.indexedDB) ? snapshot.indexedDB.length : 0,
-        indexedDBStores: Array.isArray(snapshot.indexedDB) ? snapshot.indexedDB.reduce((sum, db) => sum + (db.stores?.length || 0), 0) : 0
+        indexedDBDatabases: databases.length,
+        indexedDBStores: databases.reduce((sum, db) => sum + (db.stores?.length || 0), 0)
       }
     };
   } catch (error) {
@@ -1063,7 +1096,8 @@ async function restoreStorageSnapshot(snapshot) {
           const store = tx.objectStore(storeSnapshot.storeName);
           store.clear();
           for (const record of storeSnapshot.records || []) {
-            store.put(record.value, record.key);
+            if (store.keyPath === null) store.put(record.value, record.key);
+            else store.put(record.value);
           }
         }
       };
