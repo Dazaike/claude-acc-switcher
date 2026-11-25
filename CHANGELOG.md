@@ -3,6 +3,12 @@
 All notable changes to the Claude Account Switcher extension are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v19.8.1] - 2026-11-25
+
+### Fixed
+- Saving and re-saving accounts no longer fails when an IndexedDB snapshot contains binary keys or values. Existing snapshots still load. (`2275832`)
+- Restoring IndexedDB records now respects object stores that store the key inside the record. (`2275832`)
+
 ## [v19.8] - 2026-10-11
 
 ### Added
